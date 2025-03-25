@@ -293,7 +293,7 @@ def voltar():
 root = tk.Tk()
 root.iconbitmap("icone.ico")
 root.title("Gerador de Contratos")
-root.geometry("600x750")
+root.geometry("600x650")
 root.configure(bg="white")
 
 nome_var = tk.StringVar()

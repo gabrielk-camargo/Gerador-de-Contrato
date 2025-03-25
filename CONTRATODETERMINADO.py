@@ -311,7 +311,7 @@ def gerar_contrato():
 root = tk.Tk()
 root.iconbitmap("icone.ico")
 root.title("Gerador de Contratos")
-root.geometry("700x650")
+root.geometry("550x650")
 root.configure(bg="light gray")
 
 # Botão para voltar ao Painel Entrada com confirmação
