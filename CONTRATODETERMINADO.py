@@ -258,7 +258,7 @@ def gerar_contrato():
     periodo_extenso = f"{period_int} dias - {num2words(period_int, lang='pt_BR').upper()} DIAS"
     daily_extenso = num2words(valor_num, lang='pt_BR').upper() + " REAIS"
     
-    desconto_val = float(desconto) if desconto else 0
+    desconto_val = float(discount_var.get()) if discount_var.get() else 0
     desconto_str = f"{desconto_val}%"
     resultado = total * (1 - desconto_val / 100)
     resultado_fmt = f"{resultado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
