@@ -6,14 +6,12 @@ import requests
 import json
 from num2words import num2words
 from docx import Document
-import subprocess
+import subprocess  # Importado para executar outro script
 
 try:
     from tkcalendar import DateEntry
 except ImportError:
     DateEntry = None
-
-# Funções de validação e formatação
 
 def somente_letras(texto):
     return re.fullmatch(r'[A-Za-zÀ-ÖØ-öø-ÿ\s]+', texto) is not None
@@ -41,29 +39,6 @@ def format_valor(event):
         formatted = f"{num:,.2f}"
         formatted = formatted.replace(",", "X").replace(".", ",").replace("X", ".")
     valor_var.set(formatted)
-
-def format_valor_total(event):
-    s = valor_total_var.get()
-    digits = re.sub(r'\D', '', s)
-    if digits == "":
-        formatted = ""
-    else:
-        num = int(digits)
-        formatted = f"{num:,.2f}"
-        formatted = formatted.replace(",", "X").replace(".", ",").replace("X", ".")
-    valor_total_var.set(formatted)
-    try:
-        valor_num = float(digits)
-    except:
-        valor_num = 0
-    valor_total_extenso_var.set(num2words(valor_num, lang='pt_BR').upper() + " REAIS")
-
-def format_periodo(event):
-    s = periodo_var.get().strip()
-    if s.isdigit():
-        periodo_extenso_var.set(f"{s} dias - {num2words(int(s), lang='pt_BR').upper()} DIAS")
-    else:
-        periodo_extenso_var.set("")
 
 def format_telefone(event):
     s = telefone_var.get()
@@ -94,7 +69,6 @@ def buscar_cep():
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao buscar CEP: {e}")
 
-# Carregar dados dos veículos do JSON
 try:
     with open("veiculos.json", "r") as f:
         veiculos_data = json.load(f)
@@ -112,7 +86,7 @@ def atualizar_dados_veiculo(event):
         proprietario_var.set(veiculos_data[key][2])
         cpf_cnpj_proprietario_var.set(veiculos_data[key][3])
 
-# Variáveis globais para o parcelamento da caução (não utilizadas nesta interface)
+# Variáveis globais para o parcelamento da caução
 qtd_parcelas_caucao = ""
 valor_parcela_caucao = 0.0
 valor_extenso_caucao = ""
@@ -181,8 +155,8 @@ def gerar_contrato():
     data = data_var.get().strip()
     email = email_var.get().strip()
     telefone = telefone_var.get().strip()
-    periodo = periodo_var.get().strip()
     
+    # Validações básicas
     if not nome:
         messagebox.showerror("Erro", "O campo Nome é obrigatório.")
         return
@@ -231,9 +205,6 @@ def gerar_contrato():
     except ValueError:
         messagebox.showerror("Erro", "Data inválida. Use o formato dd/mm/aaaa.")
         return
-    if not periodo or not periodo.isdigit():
-        messagebox.showerror("Erro", "O campo PERIODO é obrigatório e deve conter apenas números.")
-        return
 
     nome = nome.upper()
     
@@ -248,27 +219,33 @@ def gerar_contrato():
         valor_num = 0
     valor_extenso = num2words(valor_num, lang='pt_BR').upper() + " REAIS"
     
-    endereco_final = f"{numero}, {endereco}"
+    endereco_final = f"{numero}, {endereco}" if numero and endereco else endereco
     
-    period_int = int(periodo)
-    total = valor_num * period_int
-    total_fmt = f"{total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    total_extenso = num2words(total, lang='pt_BR').upper() + " REAIS"
-    periodo_str = f"{period_int} dias"
-    periodo_extenso = f"{period_int} dias - {num2words(period_int, lang='pt_BR').upper()} DIAS"
-    daily_extenso = num2words(valor_num, lang='pt_BR').upper() + " REAIS"
+    if cautao == "Parcelado":
+        if not qtd_parcelas_caucao:
+            qtd = "50"
+            valor_parc = 20.00
+            valor_parc_fmt = f"{valor_parc:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            valor_extenso_caucao_local = num2words(valor_parc, lang='pt_BR').upper() + " REAIS"
+        else:
+            qtd = qtd_parcelas_caucao
+            valor_parc_fmt = f"{valor_parcela_caucao:,.2f}"
+            valor_parc_fmt = valor_parc_fmt.replace(",", "X").replace(".", ",").replace("X", ".")
+            valor_extenso_caucao_local = valor_extenso_caucao
+    else:
+        qtd = ""
+        valor_parc_fmt = ""
+        valor_extenso_caucao_local = ""
     
-    desconto_val = float(desconto) if desconto else 0
-    desconto_str = f"{desconto_val}%"
-    resultado = total * (1 - desconto_val / 100)
-    resultado_fmt = f"{resultado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    if cautao == "Parcelado":
+        model_file = "modelo_contrato_prazoinderteminadoparcelado.docx"
+    else:
+        model_file = "modelo_contrato_prazoinderteminadoquitado.docx"
     
     placeholders = {
         "{{NOME}}": nome,
         "{{CPF}}": cpf,
         "{{ENDERECO}}": endereco_final,
-        "{{TELEFONE}}": telefone,
-        "{{EMAIL}}": email,
         "{{VEICULO}}": veiculo,
         "{{FABRICACAO_MODELO}}": fabricacao_modelo,
         "{{PLACA}}": placa,
@@ -276,19 +253,18 @@ def gerar_contrato():
         "{{RENAVAM}}": renavam,
         "{{PROPRIETARIO}}": proprietario,
         "{{CPF_CNPJ_PROPRIETARIO}}": cpf_cnpj_proprietario,
-        "{{PERIODO}}": periodo_str,
-        "{{PERIODO_EXTENSO}}": periodo_extenso,
         "{{VALOR}}": valor,
         "{{VALOR_EXTENSO}}": valor_extenso,
-        "{{VALOR_TOTAL}}": total_fmt,
-        "{{VALOR_TOTAL_EXTENSO}}": total_extenso,
-        "{{DESCONTO}}": desconto_str,
-        "{{RESULTADO}}": resultado_fmt,
-        "{{DATA}}": data
+        "{{QTD_PARCELAS}}": qtd,
+        "{{VALOR_PARCELAS_CAUCAO}}": valor_parc_fmt,
+        "{{VALOR_EXTENSO_CAUCAO}}": valor_extenso_caucao_local,
+        "{{DATA}}": data,
+        "{{EMAIL}}": email,
+        "{{TELEFONE}}": telefone
     }
     
     try:
-        doc = Document("modelo_contrato_prazodeterminado.docx")
+        doc = Document(model_file)
         for para in doc.paragraphs:
             for ph, val in placeholders.items():
                 if ph in para.text:
@@ -308,28 +284,18 @@ def gerar_contrato():
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao gerar o contrato: {e}")
 
-# Função para voltar ao painel de entrada
-def voltar_painel():
-    if messagebox.askyesno("Confirmar", "Tem certeza que quer voltar? Todo o progresso será perdido."):
-        subprocess.Popen(["python", "PAINELENTRADA.py"])
+# Função para voltar: exibe mensagem de confirmação, fecha a janela atual e executa "PAINELENTRADA.py"
+def voltar():
+    if messagebox.askokcancel("Confirmar", "Tem certeza que quer voltar? Todo o progresso será perdido"):
         root.destroy()
+        subprocess.Popen(["python", "PAINELENTRADA.py"])
 
 root = tk.Tk()
 root.iconbitmap("icone.ico")
 root.title("Gerador de Contratos")
-root.geometry("700x650")
-root.configure(bg="light gray")
+root.geometry("600x750")
+root.configure(bg="white")
 
-# Frame para os botões (centralizado abaixo do formulário)
-button_frame = ttk.Frame(root, padding=10)
-button_frame.pack(side="bottom", pady=10)
-
-btn_gerar = ttk.Button(button_frame, text="GERAR CONTRATO", command=gerar_contrato)
-btn_gerar.pack(side="left", padx=10)
-btn_voltar = ttk.Button(button_frame, text="Voltar", command=voltar_painel)
-btn_voltar.pack(side="left", padx=10)
-
-# Variáveis de controle
 nome_var = tk.StringVar()
 cpf_var = tk.StringVar()
 veiculo_var = tk.StringVar(value="Selecione...")
@@ -345,113 +311,93 @@ cautao_var = tk.StringVar(value="Quitado")
 data_var = tk.StringVar()
 email_var = tk.StringVar()
 telefone_var = tk.StringVar()
-periodo_var = tk.StringVar()
-discount_var = tk.StringVar()
-valor_total_var = tk.StringVar()
 
-valor_total_extenso_var = tk.StringVar()
-periodo_extenso_var = tk.StringVar()
-result_var = tk.StringVar()
-
-# Frame principal para o formulário
 main_frame = ttk.Frame(root, padding=20)
 main_frame.pack(fill="both", expand=True)
 
-row = 0
-ttk.Label(main_frame, text="NOME:").grid(row=row, column=0, sticky="w", pady=5)
+header = ttk.Label(main_frame, text="GERADOR DE CONTRATO IZI CAR", style="Header.TLabel")
+header.grid(row=0, column=0, columnspan=3, pady=(0,20))
+
+ttk.Label(main_frame, text="Nome:").grid(row=1, column=0, sticky="w", pady=5)
 nome_entry = ttk.Entry(main_frame, textvariable=nome_var)
-nome_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
-row += 1
+nome_entry.grid(row=1, column=1, columnspan=2, sticky="ew", pady=5)
 
-ttk.Label(main_frame, text="CPF:").grid(row=row, column=0, sticky="w", pady=5)
+ttk.Label(main_frame, text="CPF:").grid(row=2, column=0, sticky="w", pady=5)
 cpf_entry = ttk.Entry(main_frame, textvariable=cpf_var)
-cpf_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
+cpf_entry.grid(row=2, column=1, columnspan=2, sticky="ew", pady=5)
 cpf_entry.bind("<FocusOut>", format_cpf)
-row += 1
 
-ttk.Label(main_frame, text="CEP:").grid(row=row, column=0, sticky="w", pady=5)
-cep_entry = ttk.Entry(main_frame, textvariable=cep_var)
-cep_entry.grid(row=row, column=1, sticky="ew", pady=5)
-btn_cep = ttk.Button(main_frame, text="Buscar CEP", command=buscar_cep)
-btn_cep.grid(row=row, column=2, padx=5, pady=5)
-row += 1
-
-ttk.Label(main_frame, text="ENDEREÇO:").grid(row=row, column=0, sticky="w", pady=5)
-endereco_entry = ttk.Entry(main_frame, textvariable=endereco_var, state="readonly")
-endereco_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
-row += 1
-
-ttk.Label(main_frame, text="NÚMERO/COMPLEMENTO:").grid(row=row, column=0, sticky="w", pady=5)
-numero_entry = ttk.Entry(main_frame, textvariable=numero_var)
-numero_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
-row += 1
-
-ttk.Label(main_frame, text="EMAIL:").grid(row=row, column=0, sticky="w", pady=5)
-email_entry = ttk.Entry(main_frame, textvariable=email_var)
-email_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
-row += 1
-
-ttk.Label(main_frame, text="TELEFONE:").grid(row=row, column=0, sticky="w", pady=5)
-telefone_entry = ttk.Entry(main_frame, textvariable=telefone_var)
-telefone_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
-telefone_entry.bind("<FocusOut>", format_telefone)
-row += 1
-
-ttk.Label(main_frame, text="VEICULO:").grid(row=row, column=0, sticky="w", pady=5)
+ttk.Label(main_frame, text="Veículo:").grid(row=3, column=0, sticky="w", pady=5)
 veiculo_cb = ttk.Combobox(main_frame, textvariable=veiculo_var, values=veiculo_keys, state="readonly")
-veiculo_cb.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
+veiculo_cb.grid(row=3, column=1, columnspan=2, sticky="ew", pady=5)
 veiculo_cb.set("Selecione...")
 veiculo_cb.bind("<<ComboboxSelected>>", atualizar_dados_veiculo)
-row += 1
 
-ttk.Label(main_frame, text="CHASSI:").grid(row=row, column=0, sticky="w", pady=5)
-chassi_entry = ttk.Entry(main_frame, textvariable=chassi_var, state="readonly")
-chassi_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
-row += 1
-
-ttk.Label(main_frame, text="RENAVAM:").grid(row=row, column=0, sticky="w", pady=5)
+ttk.Label(main_frame, text="Renavam:").grid(row=4, column=0, sticky="w", pady=5)
 renavam_entry = ttk.Entry(main_frame, textvariable=renavam_var, state="readonly")
-renavam_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
-row += 1
+renavam_entry.grid(row=4, column=1, columnspan=2, sticky="ew", pady=5)
 
-ttk.Label(main_frame, text="PROPRIETÁRIO:").grid(row=row, column=0, sticky="w", pady=5)
+ttk.Label(main_frame, text="Chassi:").grid(row=5, column=0, sticky="w", pady=5)
+chassi_entry = ttk.Entry(main_frame, textvariable=chassi_var, state="readonly")
+chassi_entry.grid(row=5, column=1, columnspan=2, sticky="ew", pady=5)
+
+ttk.Label(main_frame, text="Proprietário:").grid(row=6, column=0, sticky="w", pady=5)
 proprietario_entry = ttk.Entry(main_frame, textvariable=proprietario_var, state="readonly")
-proprietario_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
-row += 1
+proprietario_entry.grid(row=6, column=1, columnspan=2, sticky="ew", pady=5)
 
-ttk.Label(main_frame, text="CPF/CNPJ PROPRIETÁRIO:").grid(row=row, column=0, sticky="w", pady=5)
+ttk.Label(main_frame, text="CPF/CNPJ Proprietário:").grid(row=7, column=0, sticky="w", pady=5)
 cpf_cnpj_entry = ttk.Entry(main_frame, textvariable=cpf_cnpj_proprietario_var, state="readonly")
-cpf_cnpj_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
-row += 1
+cpf_cnpj_entry.grid(row=7, column=1, columnspan=2, sticky="ew", pady=5)
 
-ttk.Label(main_frame, text="PERIODO (dias):").grid(row=row, column=0, sticky="w", pady=5)
-periodo_entry = ttk.Entry(main_frame, textvariable=periodo_var)
-periodo_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
-periodo_entry.bind("<FocusOut>", format_periodo)
-row += 1
+ttk.Label(main_frame, text="CEP:").grid(row=8, column=0, sticky="w", pady=5)
+cep_entry = ttk.Entry(main_frame, textvariable=cep_var)
+cep_entry.grid(row=8, column=1, sticky="ew", pady=5)
+btn_cep = ttk.Button(main_frame, text="Buscar CEP", command=buscar_cep)
+btn_cep.grid(row=8, column=2, padx=5, pady=5)
 
-ttk.Label(main_frame, text="VALOR (diária):").grid(row=row, column=0, sticky="w", pady=5)
+ttk.Label(main_frame, text="Endereço:").grid(row=9, column=0, sticky="w", pady=5)
+endereco_entry = ttk.Entry(main_frame, textvariable=endereco_var, state="readonly")
+endereco_entry.grid(row=9, column=1, columnspan=2, sticky="ew", pady=5)
+
+ttk.Label(main_frame, text="Número/Complemento:").grid(row=10, column=0, sticky="w", pady=5)
+numero_entry = ttk.Entry(main_frame, textvariable=numero_var)
+numero_entry.grid(row=10, column=1, columnspan=2, sticky="ew", pady=5)
+
+ttk.Label(main_frame, text="Email:").grid(row=11, column=0, sticky="w", pady=5)
+email_entry = ttk.Entry(main_frame, textvariable=email_var)
+email_entry.grid(row=11, column=1, columnspan=2, sticky="ew", pady=5)
+
+ttk.Label(main_frame, text="Telefone:").grid(row=12, column=0, sticky="w", pady=5)
+telefone_entry = ttk.Entry(main_frame, textvariable=telefone_var)
+telefone_entry.grid(row=12, column=1, columnspan=2, sticky="ew", pady=5)
+telefone_entry.bind("<FocusOut>", format_telefone)
+
+ttk.Label(main_frame, text="Valor:").grid(row=13, column=0, sticky="w", pady=5)
 valor_entry = ttk.Entry(main_frame, textvariable=valor_var)
-valor_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
+valor_entry.grid(row=13, column=1, columnspan=2, sticky="ew", pady=5)
 valor_entry.bind("<FocusOut>", format_valor)
-row += 1
 
-ttk.Label(main_frame, text="DESCONTO (%):").grid(row=row, column=0, sticky="w", pady=5)
-discount_entry = ttk.Entry(main_frame, textvariable=discount_var)
-discount_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
-row += 1
+ttk.Label(main_frame, text="Caução:").grid(row=14, column=0, sticky="w", pady=5)
+cautao_cb = ttk.Combobox(main_frame, textvariable=cautao_var, values=["Quitado", "Parcelado"], state="readonly")
+cautao_cb.grid(row=14, column=1, columnspan=2, sticky="ew", pady=5)
+cautao_cb.bind("<<ComboboxSelected>>", on_caucao_change)
 
-ttk.Label(main_frame, text="RESULTADO:").grid(row=row, column=0, sticky="w", pady=5)
-result_entry = ttk.Entry(main_frame, textvariable=result_var, state="readonly")
-result_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
-row += 1
-
-ttk.Label(main_frame, text="DATA (dd/mm/aaaa):").grid(row=row, column=0, sticky="w", pady=5)
+ttk.Label(main_frame, text="Data (dd/mm/aaaa):").grid(row=15, column=0, sticky="w", pady=5)
 if DateEntry:
     data_entry = DateEntry(main_frame, textvariable=data_var, date_pattern="dd/mm/yyyy")
 else:
     data_entry = ttk.Entry(main_frame, textvariable=data_var)
-data_entry.grid(row=row, column=1, columnspan=2, sticky="ew", pady=5)
-row += 1
+data_entry.grid(row=15, column=1, columnspan=2, sticky="ew", pady=5)
+
+btn_gerar = ttk.Button(main_frame, text="GERAR CONTRATO", command=gerar_contrato)
+btn_gerar.grid(row=16, column=0, columnspan=3, pady=20)
+
+# Botão Voltar: fecha a janela atual e executa o script "PAINELENTRADA.py" após confirmação
+btn_voltar = ttk.Button(main_frame, text="Voltar", command=voltar)
+btn_voltar.grid(row=17, column=0, columnspan=3, pady=10)
+
+main_frame.columnconfigure(0, weight=1)
+main_frame.columnconfigure(1, weight=3)
+main_frame.columnconfigure(2, weight=1)
 
 root.mainloop()
