@@ -96,7 +96,7 @@ def buscar_cep():
 
 # Carregar dados dos veículos do JSON
 try:
-    with open("veiculos.json", "r") as f:
+    with open("json/veiculos.json", "r") as f:
         veiculos_data = json.load(f)
 except Exception as e:
     messagebox.showerror("Erro", f"Erro ao carregar 'veiculos.json': {e}")
@@ -288,7 +288,7 @@ def gerar_contrato():
     }
     
     try:
-        doc = Document("modelo_contrato_prazodeterminado.docx")
+        doc = Document("doc/modelo_contrato_prazodeterminado.docx")
         for para in doc.paragraphs:
             for ph, val in placeholders.items():
                 if ph in para.text:
@@ -309,7 +309,7 @@ def gerar_contrato():
         messagebox.showerror("Erro", f"Erro ao gerar o contrato: {e}")
 
 root = tk.Tk()
-root.iconbitmap("icone.ico")
+root.iconbitmap("icons/icone.ico")
 root.title("Gerador de Contratos")
 root.geometry("550x650")
 root.configure(bg="light gray")

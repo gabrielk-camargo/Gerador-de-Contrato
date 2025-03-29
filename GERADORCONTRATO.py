@@ -70,7 +70,7 @@ def buscar_cep():
         messagebox.showerror("Erro", f"Erro ao buscar CEP: {e}")
 
 try:
-    with open("veiculos.json", "r") as f:
+    with open("json/veiculos.json", "r") as f:
         veiculos_data = json.load(f)
 except Exception as e:
     messagebox.showerror("Erro", f"Erro ao carregar 'veiculos.json': {e}")
@@ -238,9 +238,9 @@ def gerar_contrato():
         valor_extenso_caucao_local = ""
     
     if cautao == "Parcelado":
-        model_file = "modelo_contrato_prazoinderteminadoparcelado.docx"
+        model_file = "doc/modelo_contrato_prazoinderteminadoparcelado.docx"
     else:
-        model_file = "modelo_contrato_prazoinderteminadoquitado.docx"
+        model_file = "doc/modelo_contrato_prazoinderteminadoquitado.docx"
     
     placeholders = {
         "{{NOME}}": nome,
@@ -291,7 +291,7 @@ def voltar():
         subprocess.Popen(["python", "PAINELENTRADA.py"])
 
 root = tk.Tk()
-root.iconbitmap("icone.ico")
+root.iconbitmap("icons/icone.ico")
 root.title("Gerador de Contratos")
 root.geometry("600x650")
 root.configure(bg="white")
