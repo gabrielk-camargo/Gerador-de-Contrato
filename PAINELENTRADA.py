@@ -56,7 +56,7 @@ try:
     root.iconbitmap("icons/icone.ico")
 except tk.TclError:
     print("Warning: Icon file 'icons/icone.ico' not found.")
-root.title("IZI CAR - Gerador de Contratos Profissional")
+root.title("IZI CAR - Gerador de Contratos")
 root.geometry("600x450")  # Increased initial size
 
 # Define colors for the menu bar based on the light theme
